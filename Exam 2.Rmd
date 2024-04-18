@@ -1,0 +1,284 @@
+---
+title: "Exam 2"
+author: "NAUMI RASHA"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(plyr);library(dplyr)
+library(stargazer)
+```
+```{r}
+load("/Users/naumirasha/Downloads/Household_Pulse_data_ph4c2.RData")
+```
+
+
+
+Question 1:
+Null Hypothsis(H0): There is no difference in the proportion of lonely individuals across age groups.
+Alternative Hypothesis(H1): There is a difference in the proportion of lonely individuals across age groups.
+```{r}
+# Create a contingency table of loneliness by age group
+loneliness_table <- matrix(c(1699, 569, 7663, 1478, 10937, 1658, 9742, 1319, 11997, 1204, 11480, 758, 3459, 179, 329, 28), nrow = 8, byrow = TRUE)
+rownames(loneliness_table) <- c("[15,25]", "(25,35]", "(35,45]", "(45,55]", "(55,65]", "(65,75]", "(75,85]", "(85,95]")
+colnames(loneliness_table) <- c("Not Lonely", "Lonely")
+
+# Perform hypothesis tests for each age group compared to the reference age group [15,25]
+reference_age_group <- loneliness_table[1, ]
+for (i in 2:nrow(loneliness_table)) {
+  current_age_group <- loneliness_table[i, ]
+  prop_reference <- reference_age_group[2] / sum(reference_age_group)
+  prop_current <- current_age_group[2] / sum(current_age_group)
+  p_hat <- (reference_age_group[2] + current_age_group[2]) / (sum(reference_age_group) + sum(current_age_group))
+  SE <- sqrt(p_hat * (1 - p_hat) * (1 / sum(reference_age_group) + 1 / sum(current_age_group)))
+  z <- (prop_reference - prop_current) / SE
+  p_value <- 2 * (1 - pnorm(abs(z)))
+  cat(sprintf("Hypothesis test for age group %s:\n", rownames(loneliness_table)[i]))
+  cat(sprintf("Proportion lonely in reference age group: %.3f\n", prop_reference))
+  cat(sprintf("Proportion lonely in current age group: %.3f\n", prop_current))
+  cat(sprintf("Test statistic (z): %.3f\n", z))
+  cat(sprintf("P-value: %.4f\n", p_value))
+  cat("\n")
+}
+
+```
+I am comparing each age group to my refrence group(15,25) and using a z-test for the proportions. The z-value measures the number of standard deviations the data point is from the mean. The p-value indicates the probability of the probability of the t-statistic.
+the significant level(a) is used to determine the significance of the results. if the p-value is less than the significant level, I reject the null hypothesis and can conclude that there is evidence to support that there is a difference in the proportion of lonely individuals across age groups. Using a significance level of 0.05, I can determine that the null hypothesis is rejected becasue there is a significant difference between each age group and the reference group.
+
+Question 2:
+Null Hypothesis(H0): There is no difference in the proportion of lonely individuals across different marital status.
+Alternative Hypothsis(H1): There is a significant difference in the proportion of lonely individuals across different marital status.
+I will use a test to determine whether the proportion of lonely individuals differ significanly between married, divorced, separated or never married individuals.
+I am going to to use a chi-square test to find if there is a connection between marital status and lonliness.
+```{r}
+# Create a contingency table for marital status and education categories
+marital_education_table <- matrix(c(15022, 7103, 6017, 20927, 4617, 6425), nrow = 2, byrow = TRUE)
+rownames(marital_education_table) <- c("Not 4yr Degree", "4yr or More")
+colnames(marital_education_table) <- c("Married", "Divorced/Separated", "Never Married")
+
+# Perform chi-square test of independence for marital status
+chi2_marital <- chisq.test(marital_education_table)
+chi2_marital
+
+# Perform chi-square test of independence for education
+chi2_education <- chisq.test(marital_education_table, correct = FALSE)
+chi2_education
+
+```
+With a significant level of 0.05 and a p-value of less than 2.2e-16, which is basically zero, I can reject the null hypothesis. Since the value was so small, I can say that there is a significant connection between marital status and education.
+
+Question 3:
+
+```{r}
+# Load necessary libraries
+library(dplyr)
+
+
+# Read the Household Pulse Data
+data <- read.csv("/Users/naumirasha/Downloads/Household_Pulse_data_ph4c2.RData")
+
+# Create an OLS linear model
+model <- lm(lonely ~ poly(age, 2) + marital_status + education + employment_status + household_income, data = data)
+
+# Summary of the model
+summary(model)
+
+# Check if estimates are statistically significant
+coef_test <- coeftest(model)
+coef_test
+
+# ANOVA test for an interesting subset of predictors
+subset_model <- lm(lonely ~ poly(age, 2) + marital_status + education, data = data)
+anova_test <- anova(subset_model, model)
+anova_test
+
+```
+```{r}
+names(Household_Pulse_data)
+
+```
+```{r}
+Household_Pulse_data$lonely <- as.numeric( 
+  (Household_Pulse_data$SOCIAL2 == "always lonely") |
+    (Household_Pulse_data$SOCIAL2 == "usually") )
+```
+```{r}
+library(dplyr)
+
+# Assuming `SOCIAL2` is the variable containing loneliness information
+Household_Pulse_data <- Household_Pulse_data %>%
+  mutate(lonely = as.numeric(SOCIAL2 == "always lonely" | SOCIAL2 == "usually"))
+
+# Now, you can proceed to create the OLS linear model
+model <- lm(lonely ~ poly(age, 2) + marital_status + education + employment_status + household_income, data = Household_Pulse_data)
+
+# Summary of the model
+summary(model)
+
+# Check if estimates are statistically significant
+coef_test <- coeftest(model)
+coef_test
+
+# ANOVA test for an interesting subset of predictors
+subset_model <- lm(lonely ~ poly(age, 2) + marital_status + education, data = Household_Pulse_data)
+anova_test <- anova(subset_model, model)
+anova_test
+
+```
+```{r}
+# Calculate age from birth year
+Household_Pulse_data <- Household_Pulse_data %>%
+  mutate(age = as.numeric(format(Sys.Date(), "%Y")) - as.numeric(TBIRTH_YEAR))
+
+# Create the OLS linear model with the calculated age variable
+model <- lm(lonely ~ poly(age, 2) + RHISPANIC + RRACE + EEDUC + MS + EGENID_BIRTH + 
+              SEXUAL_ORIENTATION + KIDS_LT5Y + KIDS_5_11Y + KIDS_12_17Y + ENROLLNONE + 
+              WRKLOSSRV + ANYWORK + KINDWORK + RSNNOWRKRV + TWDAYS + ANXIOUS + 
+              WORRY + INTEREST + DOWN + MHLTH_NEED + MHLTH_GET + MHLTH_SATISFD + 
+              MHLTH_DIFFCLT + SOCIAL1 + SOCIAL2 + SUPPORT1 + SUPPORT2 + SUPPORT3 + 
+              SUPPORT4 + SUPPORT1EXP + CURFOODSUF + CHILDFOOD + PRICESTRESS + 
+              TENURE + LIVQTRRV + RENTCUR + MORTCUR + EVICT + FORCLOSE + RECVDVACC + 
+              HADCOVIDRV + LONGCOVID + SYMPTOMS + INCOME + EST_ST + PRIVHLTH + 
+              PUBHLTH + REGION + Num_kids_Pub_School + Num_kids_Priv_School + 
+              Num_kids_homeschool, data = Household_Pulse_data)
+
+# Summary of the model
+summary(model)
+
+```
+```{r}
+# Check the levels of each categorical variable
+print(table(Household_Pulse_data$RHISPANIC))
+print(table(Household_Pulse_data$RRACE))
+print(table(Household_Pulse_data$EEDUC))
+print(table(Household_Pulse_data$MS))
+# Check other categorical variables in a similar manner
+
+```
+
+```{r}
+install.packages("lmtest")
+
+```
+```{r}
+library(lmtest)
+```
+```{r}
+# Load necessary libraries
+library(dplyr)
+library(lmtest)
+
+# Read the Household Pulse Data
+data <- read.csv("/Users/naumirasha/Downloads/Household_Pulse_data_ph4c2.RData")
+
+# Create an OLS linear model
+model <- lm(lonely ~ poly(age, 2) + marital_status + education + employment_status + household_income, data = data)
+
+# Summary of the model
+summary(model)
+
+# Check if estimates are statistically significant
+coef_test <- coeftest(model)
+coef_test
+
+# ANOVA test for an interesting subset of predictors
+subset_model <- lm(lonely ~ poly(age, 2) + marital_status + education, data = data)
+anova_test <- anova(subset_model, model)
+anova_test
+```
+```{r}
+library(dplyr)
+
+# Create the lonely variable based on SOCIAL2 responses
+Household_Pulse_data <- Household_Pulse_data %>%
+  mutate(lonely = as.numeric(SOCIAL2 == "always lonely" | SOCIAL2 == "usually"))
+
+# Check the structure of the dataset to confirm the creation of the lonely variable
+str(Household_Pulse_data)
+
+```
+Very confused by this data, it says lonely is zero
+A) I can consider a range or variables that can be associated with lonliness like age, marital status, education level, employment, household income.
+B) Yes, the estimates seem plausible
+C)Anova
+```{r}
+# ANOVA test for the model
+anova(model_1)
+
+```
+If the p-value from the ANOVA test is below the chosen significance level (0.05), I can reject the null hypothesis, indicating that the subset of predictors included in the model collectively have a significant effect on loneliness.If the p-value is above the significance level, I fail to reject the null hypothesis, suggesting that the predictors in the model do not provide a significant improvement in explaining loneliness compared to a model with no predictors.
+seeing how my data doesn't seem to be right, I made a mistake, my model doesnt seem to exist.
+Question 4:
+```{r}
+# Create the logit model
+logit_model <- glm(lonely ~ poly(age, 2) + RHISPANIC + RRACE + EEDUC + MS + EGENID_BIRTH + 
+                      SEXUAL_ORIENTATION + KIDS_LT5Y + KIDS_5_11Y + KIDS_12_17Y + ENROLLNONE + 
+                      WRKLOSSRV + ANYWORK + KINDWORK + RSNNOWRKRV + TWDAYS + ANXIOUS + 
+                      WORRY + INTEREST + DOWN + MHLTH_NEED + MHLTH_GET + MHLTH_SATISFD + 
+                      MHLTH_DIFFCLT + SOCIAL1 + SOCIAL2 + SUPPORT1 + SUPPORT2 + SUPPORT3 + 
+                      SUPPORT4 + SUPPORT1EXP + CURFOODSUF + CHILDFOOD + PRICESTRESS + 
+                      TENURE + LIVQTRRV + RENTCUR + MORTCUR + EVICT + FORCLOSE + RECVDVACC + 
+                      HADCOVIDRV + LONGCOVID + SYMPTOMS + INCOME + EST_ST + PRIVHLTH + 
+                      PUBHLTH + REGION + Num_kids_Pub_School + Num_kids_Priv_School + 
+                      Num_kids_homeschool, data = Household_Pulse_data, family = binomial())
+
+# Summary of the logit model
+summary(logit_model)
+
+```
+
+
+
+```
+
+```{r}
+logit_model <- glm(lonely ~ poly(age, 2) + RHISPANIC + RRACE + EEDUC + MS + EGENID_BIRTH + 
+                      SEXUAL_ORIENTATION + KIDS_LT5Y + KIDS_5_11Y + KIDS_12_17Y + ENROLLNONE + 
+                      WRKLOSSRV + ANYWORK + KINDWORK + RSNNOWRKRV + TWDAYS + ANXIOUS + 
+                      WORRY + INTEREST + DOWN, data = Household_Pulse_data, family = binomial())
+
+```
+Nothing seems to work for me
+
+
+Question 5:
+```{r}
+install.packages("randomForest")
+```
+
+```{r}
+# Prepare data 
+> X <- (Household_Pulse_data,MS)
+> Y <- Household_Pulse_data$MS
+> 
+> # Build random forest model
+> rf_model <- randomForest(X, Y)
+```
+
+Interpreting the results, I can see which variables have the most influence on predicting loneliness. The variables are important for understanding the factors connected with loneliness. For instance, variables with higher importance values might show demographic factors like age, marital status, or education level, or contextual factors like employment status or mental health indicators. If I identify these predictors, There will be more tailored effectively to target individuals at higher risk of loneliness.But then again nothing works
